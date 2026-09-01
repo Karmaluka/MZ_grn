@@ -543,6 +543,56 @@ function App() {
     return -1;
   }
 
+  // надійний парсер чисел: прибирає символи валют (₴, $), пробіли (в т.ч. нерозривні)
+  // та коректно визначає, чи кома/крапка — це десятковий роздільник чи розділювач тисяч
+  function toNumber(v) {
+    if (v === null || v === undefined || v === "") return null;
+    if (v instanceof Date) return null;
+    if (typeof v === "number") return isNaN(v) ? null : v;
+    let s = String(v).trim();
+    if (!s) return null;
+    s = s.replace(/[^\d,.\-]/g, ""); // прибрати все, крім цифр, коми, крапки, мінуса
+    if (!s || s === "-") return null;
+    const commaIdx = s.lastIndexOf(",");
+    const dotIdx = s.lastIndexOf(".");
+    if (commaIdx !== -1 && dotIdx !== -1) {
+      if (commaIdx > dotIdx) s = s.replace(/\./g, "").replace(",", ".");
+      else s = s.replace(/,/g, "");
+    } else if (commaIdx !== -1) {
+      const decimals = s.length - commaIdx - 1;
+      s = decimals > 0 && decimals <= 2 ? s.replace(",", ".") : s.replace(/,/g, "");
+    }
+    const n = Number(s);
+    return isNaN(n) ? null : n;
+  }
+
+  // визначає ролі колонок за заголовком: кожна колонка може належати лише ОДНІЙ ролі,
+  // ролі перевіряються у порядку пріоритету, щоб уникнути помилкового накладання
+  // (напр. "Дохід ₴" ніколи не сплутається з "Переведено $")
+  function detectColumns(headerRow) {
+    const roles = [
+      { key: "date", matchers: ["дата", "date"] },
+      { key: "desc", matchers: ["опис", "desc", "коментар", "призначення"] },
+      { key: "rate", matchers: ["курс"] },
+      { key: "expense", matchers: ["витрата", "витрати", "expense"] },
+      { key: "usd", matchers: ["переведено$", "usd", "$"] },
+      { key: "income", matchers: ["дохід", "income", "надход"] },
+    ];
+    const cols = { date: -1, desc: -1, rate: -1, expense: -1, usd: -1, income: -1 };
+    for (let i = 0; i < headerRow.length; i++) {
+      const h = normHeader(headerRow[i]);
+      if (!h) continue;
+      for (const role of roles) {
+        if (cols[role.key] !== -1) continue;
+        if (role.matchers.some((m) => h.includes(m))) {
+          cols[role.key] = i;
+          break;
+        }
+      }
+    }
+    return cols;
+  }
+
   function handleXlsxImportFile(ev) {
     const file = ev.target.files?.[0];
     if (!file) return;
@@ -557,18 +607,10 @@ function App() {
         let headerIdx = -1, cols = null;
         for (let r = 0; r < Math.min(rows2d.length, 30); r++) {
           const row = rows2d[r] || [];
-          const dateCol = findCol(row, ["дата", "date"]);
-          const descCol = findCol(row, ["опис", "desc", "коментар", "призначення"]);
-          if (dateCol !== -1 && descCol !== -1) {
+          const candidate = detectColumns(row);
+          if (candidate.date !== -1 && candidate.desc !== -1) {
             headerIdx = r;
-            cols = {
-              date: dateCol,
-              desc: descCol,
-              income: findCol(row, ["дохід", "income", "надход"]),
-              expense: findCol(row, ["витрата", "витрати", "expense"]),
-              usd: findCol(row, ["переведено $", "usd", "$"]),
-              rate: findCol(row, ["курс"]),
-            };
+            cols = candidate;
             break;
           }
         }
@@ -587,10 +629,10 @@ function App() {
           const isEmpty = (v) => v === null || v === undefined || v === "";
           if (isEmpty(dateRaw) && isEmpty(desc) && isEmpty(incomeRaw) && isEmpty(expenseRaw) && isEmpty(usdRaw)) continue;
 
-          const income = !isEmpty(incomeRaw) && !isNaN(Number(incomeRaw)) ? Number(incomeRaw) : null;
-          const expense = !isEmpty(expenseRaw) && !isNaN(Number(expenseRaw)) ? Number(expenseRaw) : null;
-          const usdAmount = !isEmpty(usdRaw) && !isNaN(Number(usdRaw)) ? Number(usdRaw) : null;
-          const rate = !isEmpty(rateRaw) && !isNaN(Number(rateRaw)) ? Number(rateRaw) : null;
+          const income = toNumber(incomeRaw);
+          const expense = toNumber(expenseRaw);
+          const usdAmount = toNumber(usdRaw);
+          const rate = toNumber(rateRaw);
           const date = parseDateCell(dateRaw);
 
           if (usdAmount !== null) {
