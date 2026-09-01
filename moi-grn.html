@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Мої грн</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#1F4B3F" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Мої грн" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #e9e4d4; }
+  body { font-family: 'Lora', serif; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  .ledger-row { border-bottom: 1px solid #c9c2a8; }
+  .ledger-row:hover { background: #f4f0e2; }
+  input, select {
+    font-family: 'IBM Plex Mono', monospace;
+    background: #fbf9f2;
+    border: 1px solid #b9b198;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 14px;
+    width: 100%;
+    color: #1b2a4a;
+  }
+  input:focus, select:focus { outline: 2px solid #1F4B3F; outline-offset: 1px; }
+  button { cursor: pointer; }
+  button:focus-visible, a:focus-visible { outline: 2px solid #1F4B3F; outline-offset: 2px; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .spin { animation: spin 0.8s linear infinite; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef } = React;
+
+/* ------------------------------------------------------------------ */
+/*  Іконки (прості SVG, без зовнішніх бібліотек)                       */
+/* ------------------------------------------------------------------ */
+function Icon({ path, size = 16, ...props }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      {path}
+    </svg>
+  );
+}
+const PlusIcon = (p) => <Icon {...p} path={<><path d="M12 5v14M5 12h14"/></>} />;
+const MinusIcon = (p) => <Icon {...p} path={<><path d="M5 12h14"/></>} />;
+const TrashIcon = (p) => <Icon {...p} path={<><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></>} />;
+const PencilIcon = (p) => <Icon {...p} path={<><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></>} />;
+const XIcon = (p) => <Icon {...p} path={<><path d="M18 6 6 18M6 6l12 12"/></>} />;
+const CheckIcon = (p) => <Icon {...p} path={<><path d="M20 6 9 17l-5-5"/></>} />;
+const PiggyIcon = (p) => <Icon {...p} path={<><path d="M19 9V7a2 2 0 0 0-2-2h-1.5a5.5 5.5 0 0 0-9.8 3H4a1 1 0 0 0-1 1v3l2 1v2a1 1 0 0 0 1 1h1v2h3v-2h4v2h3v-2.3c1.2-.7 2-2 2-3.5V9Z"/><circle cx="15" cy="10" r="0.5" fill="currentColor"/></>} />;
+const WarnIcon = (p) => <Icon {...p} path={<><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></>} />;
+const SaveIcon = (p) => <Icon {...p} path={<><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></>} />;
+const UploadIcon = (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></>} />;
+const SyncIcon = (p) => <Icon {...p} path={<><path d="M21 12a9 9 0 0 1-15.3 6.4L3 16"/><path d="M3 12a9 9 0 0 1 15.3-6.4L21 8"/><path d="M3 16v4h4"/><path d="M21 8V4h-4"/></>} />;
+const ArrowRightIcon = (p) => <Icon {...p} path={<><path d="M5 12h14M13 6l6 6-6 6"/></>} />;
+
+/* ------------------------------------------------------------------ */
+/*  Початкові дані — з наданого файлу МЗ3_грн.xlsx                     */
+/* ------------------------------------------------------------------ */
+const SEED = [
+  { id: "seed1", date: null, desc: "не памятаю", type: "income", uah: 5000, rate: null, usdAmount: null },
+];
+
+const fmt = (n) =>
+  n === null || n === undefined || isNaN(n)
+    ? "—"
+    : new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 2 }).format(n);
+
+const fmt2 = (n) =>
+  n === null || n === undefined || isNaN(n)
+    ? "—"
+    : new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+const fmtDate = (d) => {
+  if (!d) return "—";
+  const [y, m, day] = d.split("-");
+  return `${day}.${m}.${y}`;
+};
+
+const fmtDateTime = (d) => {
+  if (!d) return "—";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+const STORAGE_KEY = "moi-zaoshchadzhennya-grn-entries";
+const IDB_NAME = "moi-zaoshchadzhennya-grn-db";
+const IDB_STORE = "handles";
+const IDB_KEY = "excel-file-handle";
+
+// мінімальний IndexedDB-хелпер — тримає дескриптор файлу між сесіями,
+// щоб не питати користувача обирати файл щоразу
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSet(key, value) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    tx.objectStore(IDB_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readonly");
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbDel(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    tx.objectStore(IDB_STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Простий SVG-графік поточного залишку (без зовнішніх бібліотек)     */
+/* ------------------------------------------------------------------ */
+function MiniLineChart({ data }) {
+  const width = 640, height = 200, padL = 56, padR = 12, padT = 12, padB = 24;
+  const svgRef = useRef(null);
+  const [hoverIdx, setHoverIdx] = useState(null);
+
+  if (data.length < 2) {
+    return <div style={{ padding: "40px 12px", textAlign: "center", color: "#8a8267", fontSize: 13 }}>Замало даних для графіка.</div>;
+  }
+  const values = data.map((d) => d.value);
+  const min = Math.min(0, ...values);
+  const max = Math.max(...values);
+  const xStep = (width - padL - padR) / (data.length - 1);
+  const yScale = (v) => height - padB - ((v - min) / (max - min || 1)) * (height - padT - padB);
+  const points = data.map((d, i) => [padL + i * xStep, yScale(d.value)]);
+  const pathD = points.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(" ");
+  const zeroY = yScale(0);
+  const ticksY = 4;
+  const yTickVals = Array.from({ length: ticksY + 1 }, (_, i) => min + ((max - min) * i) / ticksY);
+  const xTickIdx = [0, Math.floor(data.length / 2), data.length - 1];
+
+  const activeIdx = hoverIdx !== null ? hoverIdx : data.length - 1;
+
+  function updateFromClientX(clientX) {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const relX = ((clientX - rect.left) / rect.width) * width;
+    let idx = Math.round((relX - padL) / xStep);
+    idx = Math.max(0, Math.min(data.length - 1, idx));
+    setHoverIdx(idx);
+  }
+
+  return (
+    <div>
+      <div style={{ textAlign: "center", marginBottom: 4 }}>
+        <div className="mono" style={{ fontSize: 22, fontWeight: 700, color: "#1F4B3F" }}>
+          {fmt(data[activeIdx].value)} ₴
+        </div>
+      </div>
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ width: "100%", height: "auto", display: "block", touchAction: "none", cursor: "crosshair" }}
+        onPointerMove={(ev) => { ev.preventDefault(); updateFromClientX(ev.clientX); }}
+        onPointerDown={(ev) => { ev.preventDefault(); updateFromClientX(ev.clientX); }}
+        onPointerLeave={() => setHoverIdx(null)}
+      >
+        {yTickVals.map((v, i) => (
+          <g key={i}>
+            <line x1={padL} x2={width - padR} y1={yScale(v)} y2={yScale(v)} stroke="#ddd6bd" strokeDasharray="3 3" />
+            <text x={padL - 6} y={yScale(v) + 3} textAnchor="end" fontSize="9" fontFamily="'IBM Plex Mono', monospace" fill="#5a5237">
+              {fmt(Math.round(v))}
+            </text>
+          </g>
+        ))}
+        {xTickIdx.map((idx) => (
+          <text key={idx} x={padL + idx * xStep} y={height - 6} textAnchor="middle" fontSize="9" fontFamily="'IBM Plex Mono', monospace" fill="#5a5237">
+            {fmtDate(data[idx].date)}
+          </text>
+        ))}
+        <line x1={padL} x2={width - padR} y1={zeroY} y2={zeroY} stroke="#b5474d" strokeDasharray="4 4" />
+        <path d={pathD} fill="none" stroke="#1F4B3F" strokeWidth="2" />
+        {points.map((p, i) => (
+          <circle key={i} cx={p[0]} cy={p[1]} r="2.5" fill="#1F4B3F" opacity={i === activeIdx ? 0 : 0.5} />
+        ))}
+        <line x1={points[activeIdx][0]} x2={points[activeIdx][0]} y1={padT} y2={height - padB} stroke="#1F4B3F" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+        <circle cx={points[activeIdx][0]} cy={points[activeIdx][1]} r="5" fill="#1F4B3F" stroke="#fbf9f2" strokeWidth="2" />
+      </svg>
+      <div style={{ textAlign: "center", marginTop: 4 }}>
+        <div className="mono" style={{ fontSize: 12, color: "#5a5237" }}>
+          {fmtDate(data[activeIdx].date)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+function App() {
+  const [entries, setEntries] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+      }
+    } catch (e) {}
+    return SEED;
+  });
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [importMsg, setImportMsg] = useState(null);
+  const xlsxInputRef = useRef(null);
+
+  // ---- автозбереження в Excel-файл на диску (File System Access API) ----
+  const fsaSupported = typeof window !== "undefined" && "showSaveFilePicker" in window;
+  const [fileHandle, setFileHandle] = useState(null);
+  const [pendingHandle, setPendingHandle] = useState(null);
+  const [autoSaveState, setAutoSaveState] = useState("idle"); // idle | saving | saved | error
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const autoSaveTimer = useRef(null);
+  const skipNextAutoSave = useRef(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!fsaSupported) return;
+        const handle = await idbGet(IDB_KEY);
+        if (!handle) return;
+        const perm = await handle.queryPermission({ mode: "readwrite" });
+        if (perm === "granted") setFileHandle(handle);
+        else setPendingHandle(handle);
+      } catch (e) {}
+    })();
+  }, []);
+
+  async function writeToHandle(handle) {
+    const wb = buildWorkbook(entries);
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const writable = await handle.createWritable();
+    await writable.write(buf);
+    await writable.close();
+  }
+
+  async function forceSaveNow() {
+    if (!fileHandle) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    setAutoSaveState("saving");
+    try {
+      await writeToHandle(fileHandle);
+      setAutoSaveState("saved");
+      setLastSavedAt(new Date());
+    } catch (e) { setAutoSaveState("error"); }
+  }
+
+  async function connectExcelFile() {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: "moi-grn.xlsx",
+        types: [{
+          description: "Excel Workbook",
+          accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] },
+        }],
+      });
+      await idbSet(IDB_KEY, handle);
+      setFileHandle(handle);
+      setPendingHandle(null);
+      setAutoSaveState("saving");
+      await writeToHandle(handle);
+      setAutoSaveState("saved");
+      setLastSavedAt(new Date());
+    } catch (e) {
+      if (e.name !== "AbortError") setAutoSaveState("error");
+    }
+  }
+
+  async function reconnectExcelFile() {
+    if (!pendingHandle) return;
+    try {
+      const perm = await pendingHandle.requestPermission({ mode: "readwrite" });
+      if (perm === "granted") {
+        setFileHandle(pendingHandle);
+        setPendingHandle(null);
+        setAutoSaveState("saving");
+        await writeToHandle(pendingHandle);
+        setAutoSaveState("saved");
+        setLastSavedAt(new Date());
+      }
+    } catch (e) { setAutoSaveState("error"); }
+  }
+
+  async function disconnectExcelFile() {
+    await idbDel(IDB_KEY);
+    setFileHandle(null);
+    setPendingHandle(null);
+    setAutoSaveState("idle");
+    setLastSavedAt(null);
+  }
+
+  useEffect(() => {
+    if (skipNextAutoSave.current) { skipNextAutoSave.current = false; return; }
+    if (!fileHandle) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    setAutoSaveState("saving");
+    autoSaveTimer.current = setTimeout(async () => {
+      try {
+        await writeToHandle(fileHandle);
+        setAutoSaveState("saved");
+        setLastSavedAt(new Date());
+      } catch (e) { setAutoSaveState("error"); }
+    }, 600);
+    return () => clearTimeout(autoSaveTimer.current);
+  }, [entries, fileHandle]);
+
+  useEffect(() => {
+    function handleHide() {
+      if (document.visibilityState === "hidden" && fileHandle) {
+        writeToHandle(fileHandle).then(() => setLastSavedAt(new Date())).catch(() => {});
+      }
+    }
+    document.addEventListener("visibilitychange", handleHide);
+    window.addEventListener("pagehide", handleHide);
+    return () => {
+      document.removeEventListener("visibilitychange", handleHide);
+      window.removeEventListener("pagehide", handleHide);
+    };
+  }, [fileHandle, entries]);
+
+  useEffect(() => {
+    async function recheck() {
+      if (document.visibilityState !== "visible" || !fsaSupported) return;
+      const handle = fileHandle || pendingHandle;
+      if (!handle) return;
+      try {
+        const perm = await handle.queryPermission({ mode: "readwrite" });
+        if (perm === "granted" && !fileHandle) {
+          setFileHandle(handle);
+          setPendingHandle(null);
+        } else if (perm !== "granted" && fileHandle) {
+          setPendingHandle(fileHandle);
+          setFileHandle(null);
+        }
+      } catch (e) {}
+    }
+    document.addEventListener("visibilitychange", recheck);
+    return () => document.removeEventListener("visibilitychange", recheck);
+  }, [fileHandle, pendingHandle, fsaSupported]);
+
+  useEffect(() => {
+    if (!fileHandle) return;
+    const id = setInterval(() => {
+      writeToHandle(fileHandle).then(() => setLastSavedAt(new Date())).catch(() => {});
+    }, 20000);
+    return () => clearInterval(id);
+  }, [fileHandle, entries]);
+
+  /* ---- побудова Excel-файлу ---- */
+  function buildWorkbook(entriesToExport) {
+    const sorted = [...entriesToExport].sort((a, b) => {
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return a.date.localeCompare(b.date);
+    });
+
+    const firstDataRow = 6;
+    const lastDataRow = firstDataRow + Math.max(sorted.length, 1) - 1;
+
+    const FMT_UAH = `_-* #,##0.00\\ [$₴-422]_-;\\-* #,##0.00\\ [$₴-422]_-;_-* \\-??\\ [$₴-422]_-;_-@_-`;
+    const FMT_USD = `_([$$-409]* #,##0.00_);_([$$-409]* \\(#,##0.00\\);_([$$-409]* \\-_);_(@_)`;
+    const FMT_DATE = "dd.mm.yyyy";
+
+    const COL_BLUE = "31A0C5";
+    const COL_PURPLE = "8982A2";
+    const COL_NAVY = "140545";
+    const COL_GRAY = "7F7F7F";
+    const COL_RED = "B5474D";
+
+    const aoa = [];
+    aoa[0] = ["Мої грн"];
+    aoa[1] = [];
+    aoa[2] = [];
+    aoa[3] = [];
+    aoa[4] = [null, "Дата", "Опис", "Дохід ₴", "Витрата ₴", "Переведено $", "Курс", "Списано ₴"];
+
+    sorted.forEach((e, i) => {
+      const dateVal = e.date ? new Date(e.date + "T00:00:00") : null;
+      const income = e.type === "income" ? e.uah : null;
+      const expense = e.type === "expense" ? e.uah : null;
+      const usdAmt = e.type === "convert" ? e.usdAmount : null;
+      const rate = e.type === "convert" ? e.rate : null;
+      aoa[firstDataRow - 1 + i] = [i + 1, dateVal, e.desc, income, expense, usdAmt, rate, null];
+      // "Списано ₴" рахуємо як формулу F*G нижче, після побудови листа
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    for (let i = 0; i < sorted.length; i++) {
+      const r = firstDataRow + i;
+      const e = sorted[i];
+      if (e.type === "convert") {
+        ws[`H${r}`] = { t: "n", f: `F${r}*G${r}`, z: FMT_UAH };
+      }
+    }
+
+    ws["B3"] = { t: "n", f: `SUM(D${firstDataRow}:D${lastDataRow})`, z: FMT_UAH };
+    ws["E3"] = { t: "n", f: `SUM(E${firstDataRow}:E${lastDataRow})`, z: FMT_UAH };
+    ws["F3"] = { t: "n", f: `SUM(F${firstDataRow}:F${lastDataRow})`, z: FMT_USD };
+    ws["H3"] = { t: "n", f: `SUM(H${firstDataRow}:H${lastDataRow})`, z: FMT_UAH };
+    ws["J2"] = { t: "s", v: "Поточна" };
+    ws["J3"] = { t: "n", f: "B3-E3-H3", z: FMT_UAH };
+
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+    range.e.c = Math.max(range.e.c, XLSX.utils.decode_col("J"));
+    ws["!ref"] = XLSX.utils.encode_range(range);
+
+    const sTitle = { font: { name: "Calibri", sz: 26, bold: true, color: { rgb: COL_BLUE } }, alignment: { horizontal: "center", vertical: "center" } };
+    const sSummaryBase = { fill: { patternType: "solid", fgColor: { rgb: COL_PURPLE } }, font: { name: "Calibri", color: { rgb: "FFFFFF" } }, alignment: { horizontal: "center", vertical: "center" } };
+    const sBadgeBase = { fill: { patternType: "solid", fgColor: { rgb: COL_BLUE } }, font: { name: "Calibri", bold: true, color: { rgb: "FFFFFF" } }, alignment: { horizontal: "center", vertical: "center" } };
+    const thinBottom = { bottom: { style: "thin", color: { rgb: "140545" } } };
+
+    ws["A1"].s = sTitle;
+    ws["B3"].s = { ...sSummaryBase, font: { ...sSummaryBase.font, sz: 16, bold: true } };
+    ws["E3"].s = { ...sSummaryBase, font: { ...sSummaryBase.font, sz: 14 }, fill: { patternType: "solid", fgColor: { rgb: COL_RED } } };
+    ws["F3"].s = { ...sSummaryBase, font: { ...sSummaryBase.font, sz: 14 }, fill: { patternType: "solid", fgColor: { rgb: "3E6B52" } } };
+    ws["H3"].s = { ...sSummaryBase, font: { ...sSummaryBase.font, sz: 12 } };
+    ws["J2"].s = { ...sBadgeBase, font: { ...sBadgeBase.font, sz: 12 } };
+    ws["J3"].s = { ...sBadgeBase, font: { ...sBadgeBase.font, sz: 20 } };
+
+    ws["B5"].s = { font: { name: "Calibri", sz: 14, bold: true, color: { rgb: COL_NAVY } }, border: thinBottom };
+    ws["C5"].s = { font: { name: "Calibri", sz: 14, color: { rgb: "000000" } }, alignment: { horizontal: "left" } };
+    ws["D5"].s = { font: { name: "Calibri", sz: 14, color: { rgb: "000000" } }, alignment: { horizontal: "right", vertical: "center" } };
+    ws["E5"].s = { font: { name: "Calibri", sz: 14, color: { rgb: "000000" } }, alignment: { horizontal: "right", vertical: "center" } };
+    ws["F5"].s = { font: { name: "Calibri", sz: 14 }, alignment: { horizontal: "right" } };
+    ws["G5"].s = { font: { name: "Calibri", sz: 12 }, alignment: { horizontal: "center", vertical: "center" } };
+    ws["H5"].s = { font: { name: "Calibri", sz: 12, bold: true, color: { rgb: "000000" } }, alignment: { horizontal: "center", vertical: "center" } };
+
+    for (let r = firstDataRow; r <= lastDataRow; r++) {
+      const cA = ws[`A${r}`], cB = ws[`B${r}`], cC = ws[`C${r}`], cD = ws[`D${r}`], cE = ws[`E${r}`], cF = ws[`F${r}`], cG = ws[`G${r}`], cH = ws[`H${r}`];
+      if (cA) cA.s = { font: { name: "Calibri", sz: 14, color: { rgb: COL_GRAY } }, alignment: { horizontal: "center", vertical: "center" } };
+      if (cB) { cB.s = { font: { name: "Calibri", sz: 14 }, alignment: { horizontal: "center", vertical: "center" }, border: thinBottom }; if (cB.v) cB.z = FMT_DATE; }
+      if (cC) cC.s = { font: { name: "Calibri", sz: 14 }, alignment: { horizontal: "left", vertical: "center" } };
+      if (cD) { cD.s = { font: { name: "Calibri", sz: 14, color: { rgb: "25543F" } }, alignment: { horizontal: "right", vertical: "center" } }; if (cD.v !== undefined) cD.z = FMT_UAH; }
+      if (cE) { cE.s = { font: { name: "Calibri", sz: 14, color: { rgb: COL_RED } }, alignment: { horizontal: "right", vertical: "center" } }; if (cE.v !== undefined) cE.z = FMT_UAH; }
+      if (cF) { cF.s = { font: { name: "Calibri", sz: 14, color: { rgb: COL_NAVY } }, alignment: { horizontal: "right", vertical: "center" } }; if (cF.v !== undefined) cF.z = FMT_USD; }
+      if (cG) cG.s = { font: { name: "Calibri", sz: 12 }, alignment: { horizontal: "center", vertical: "center" } };
+      if (cH) { cH.s = { font: { name: "Calibri", sz: 12, color: { rgb: COL_RED } }, alignment: { horizontal: "center", vertical: "center" } }; if (cH.v !== undefined) cH.z = FMT_UAH; }
+    }
+
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 1, c: 7 } },
+      { s: { r: 2, c: 1 }, e: { r: 2, c: 2 } },
+    ];
+
+    ws["!cols"] = [
+      { wch: 6 }, { wch: 13 }, { wch: 34 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 4 }, { wch: 13 },
+    ];
+    ws["!rows"] = [
+      { hpt: 32 }, { hpt: 30 }, { hpt: 36 }, { hpt: 7 },
+      ...Array(Math.max(lastDataRow - 4, 1)).fill({ hpt: 20 }),
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Список");
+    return wb;
+  }
+
+  function exportXlsx() {
+    const wb = buildWorkbook(entries);
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `moi-grn-${stamp}.xlsx`);
+  }
+
+  function triggerXlsxImport() {
+    xlsxInputRef.current?.click();
+  }
+
+  function parseDateCell(v) {
+    if (!v && v !== 0) return null;
+    if (v instanceof Date) {
+      if (isNaN(v.getTime())) return null;
+      return v.toISOString().slice(0, 10);
+    }
+    const s = String(v).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const dm = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
+    if (dm) {
+      const [, d, m, y] = dm;
+      const mm = Number(m), dd = Number(d);
+      if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+        return `${y}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+      }
+      return null;
+    }
+    return null;
+  }
+
+  function normHeader(v) {
+    return (v === null || v === undefined) ? "" : String(v).toLowerCase().replace(/[.\s]/g, "");
+  }
+  function findCol(headerRow, matchers) {
+    for (let i = 0; i < headerRow.length; i++) {
+      const h = normHeader(headerRow[i]);
+      if (!h) continue;
+      if (matchers.some((m) => h.includes(m))) return i;
+    }
+    return -1;
+  }
+
+  function handleXlsxImportFile(ev) {
+    const file = ev.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = new Uint8Array(reader.result);
+        const wb = XLSX.read(data, { type: "array", cellDates: true });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows2d = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+
+        let headerIdx = -1, cols = null;
+        for (let r = 0; r < Math.min(rows2d.length, 30); r++) {
+          const row = rows2d[r] || [];
+          const dateCol = findCol(row, ["дата", "date"]);
+          const descCol = findCol(row, ["опис", "desc", "коментар", "призначення"]);
+          if (dateCol !== -1 && descCol !== -1) {
+            headerIdx = r;
+            cols = {
+              date: dateCol,
+              desc: descCol,
+              income: findCol(row, ["дохід", "income", "надход"]),
+              expense: findCol(row, ["витрата", "витрати", "expense"]),
+              usd: findCol(row, ["переведено $", "usd", "$"]),
+              rate: findCol(row, ["курс"]),
+            };
+            break;
+          }
+        }
+        if (headerIdx === -1) throw new Error("Не вдалося знайти рядок заголовків (мають бути колонки «Дата» і «Опис»)");
+
+        const parsed = [];
+        for (let r = headerIdx + 1; r < rows2d.length; r++) {
+          const row = rows2d[r] || [];
+          const dateRaw = cols.date !== -1 ? row[cols.date] : null;
+          const desc = cols.desc !== -1 ? row[cols.desc] : null;
+          const incomeRaw = cols.income !== -1 ? row[cols.income] : null;
+          const expenseRaw = cols.expense !== -1 ? row[cols.expense] : null;
+          const usdRaw = cols.usd !== -1 ? row[cols.usd] : null;
+          const rateRaw = cols.rate !== -1 ? row[cols.rate] : null;
+
+          const isEmpty = (v) => v === null || v === undefined || v === "";
+          if (isEmpty(dateRaw) && isEmpty(desc) && isEmpty(incomeRaw) && isEmpty(expenseRaw) && isEmpty(usdRaw)) continue;
+
+          const income = !isEmpty(incomeRaw) && !isNaN(Number(incomeRaw)) ? Number(incomeRaw) : null;
+          const expense = !isEmpty(expenseRaw) && !isNaN(Number(expenseRaw)) ? Number(expenseRaw) : null;
+          const usdAmount = !isEmpty(usdRaw) && !isNaN(Number(usdRaw)) ? Number(usdRaw) : null;
+          const rate = !isEmpty(rateRaw) && !isNaN(Number(rateRaw)) ? Number(rateRaw) : null;
+          const date = parseDateCell(dateRaw);
+
+          if (usdAmount !== null) {
+            parsed.push({
+              id: uid(), date, desc: !isEmpty(desc) ? String(desc).trim() : "Переведено в $",
+              type: "convert", uah: rate ? Math.round(usdAmount * rate * 100) / 100 : 0,
+              rate, usdAmount,
+              flag: date ? null : `Дата не розпізнана: "${dateRaw ?? ""}"`,
+            });
+          } else if (expense !== null) {
+            parsed.push({
+              id: uid(), date, desc: !isEmpty(desc) ? String(desc).trim() : "Витрата",
+              type: "expense", uah: expense, rate: null, usdAmount: null,
+              flag: date ? null : `Дата не розпізнана: "${dateRaw ?? ""}"`,
+            });
+          } else if (income !== null) {
+            parsed.push({
+              id: uid(), date, desc: !isEmpty(desc) ? String(desc).trim() : "Без опису",
+              type: "income", uah: income, rate: null, usdAmount: null,
+              flag: date ? null : `Дата не розпізнана: "${dateRaw ?? ""}"`,
+            });
+          }
+        }
+        if (parsed.length === 0) throw new Error("У файлі не знайдено жодного запису після рядка заголовків");
+
+        const replace = confirm(
+          `Знайдено ${parsed.length} записів у Excel-файлі.\n\nOK — замінити всі поточні записи цими.\nСкасувати — додати їх до існуючих (без заміни).`
+        );
+        if (replace) setEntries(parsed);
+        else setEntries((prev) => [...parsed, ...prev]);
+        setImportMsg({ ok: true, text: `Імпортовано ${parsed.length} записів з Excel.` });
+      } catch (e) {
+        setImportMsg({ ok: false, text: "Не вдалося прочитати Excel-файл: " + e.message });
+      } finally {
+        ev.target.value = "";
+        setTimeout(() => setImportMsg(null), 4000);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    } catch (e) { console.error("Storage error:", e); }
+  }, [entries]);
+
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredEntries = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return entries.filter((e) => {
+      if (q && !(e.desc || "").toLowerCase().includes(q)) return false;
+      if (dateFrom || dateTo) {
+        if (!e.date) return false;
+        if (dateFrom && e.date < dateFrom) return false;
+        if (dateTo && e.date > dateTo) return false;
+      }
+      return true;
+    });
+  }, [entries, dateFrom, dateTo, searchQuery]);
+
+  const visible = useMemo(() => {
+    return [...filteredEntries].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  }, [filteredEntries]);
+
+  const descOptions = useMemo(() => {
+    const set = new Set();
+    entries.forEach((e) => { if (e.desc) set.add(e.desc); });
+    return Array.from(set);
+  }, [entries]);
+
+  // ---- підсумки завжди рахуються по УСІХ записах (незалежно від фільтра/пошуку) ----
+  const totals = useMemo(() => {
+    let totalAdded = 0, convertedUah = 0, convertedUsd = 0, expenseUah = 0, flagged = 0;
+    entries.forEach((e) => {
+      if (e.type === "income") totalAdded += e.uah || 0;
+      else if (e.type === "convert") { convertedUah += e.uah || 0; convertedUsd += e.usdAmount || 0; }
+      else if (e.type === "expense") expenseUah += e.uah || 0;
+      if (e.flag) flagged++;
+    });
+    const current = Math.round((totalAdded - convertedUah - expenseUah) * 100) / 100;
+    return {
+      totalAdded: Math.round(totalAdded * 100) / 100,
+      current,
+      convertedUah: Math.round(convertedUah * 100) / 100,
+      convertedUsd: Math.round(convertedUsd * 100) / 100,
+      expenseUah: Math.round(expenseUah * 100) / 100,
+      flagged,
+    };
+  }, [entries]);
+
+  const chartData = useMemo(() => {
+    const valid = entries.filter((e) => e.date).sort((a, b) => a.date.localeCompare(b.date));
+    let running = 0;
+    return valid.map((e) => {
+      if (e.type === "income") running += e.uah || 0;
+      else if (e.type === "convert") running -= e.uah || 0;
+      else if (e.type === "expense") running -= e.uah || 0;
+      return { date: e.date, value: Math.round(running * 100) / 100 };
+    });
+  }, [entries]);
+
+  function openAdd() {
+    setEditing({ id: null, date: new Date().toISOString().slice(0, 10), desc: "", uah: "" });
+    setAddOpen(true);
+  }
+  function openEditIncome(entry) {
+    setEditing({ ...entry, uah: entry.uah ?? "" });
+    setAddOpen(true);
+  }
+  function openConvert() {
+    setEditing({ id: null, date: new Date().toISOString().slice(0, 10), desc: "Переведено в $", uah: "", rate: "" });
+    setConvertOpen(true);
+  }
+  function openEditConvert(entry) {
+    setEditing({ ...entry, uah: entry.uah ?? "", rate: entry.rate ?? "" });
+    setConvertOpen(true);
+  }
+  function openExpense() {
+    setEditing({ id: null, date: new Date().toISOString().slice(0, 10), desc: "", uah: "" });
+    setExpenseOpen(true);
+  }
+  function openEditExpense(entry) {
+    setEditing({ ...entry, uah: entry.uah ?? "" });
+    setExpenseOpen(true);
+  }
+  function openEdit(entry) {
+    if (entry.type === "convert") openEditConvert(entry);
+    else if (entry.type === "expense") openEditExpense(entry);
+    else openEditIncome(entry);
+  }
+  function remove(id) {
+    if (!confirm("Видалити цей запис?")) return;
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  function saveIncome(form) {
+    const uah = form.uah === "" ? 0 : Number(form.uah);
+    const clean = {
+      id: form.id ?? uid(),
+      date: form.date || null,
+      desc: (form.desc || "").trim() || "Без опису",
+      type: "income",
+      uah,
+      rate: null,
+      usdAmount: null,
+      flag: form.date ? null : "Дата не вказана",
+    };
+    setEntries((prev) => {
+      if (form.id) return prev.map((e) => (e.id === form.id ? clean : e));
+      return [clean, ...prev];
+    });
+    setAddOpen(false);
+    setEditing(null);
+  }
+
+  function saveExpense(form) {
+    const uah = form.uah === "" ? 0 : Number(form.uah);
+    const clean = {
+      id: form.id ?? uid(),
+      date: form.date || null,
+      desc: (form.desc || "").trim() || "Витрата",
+      type: "expense",
+      uah,
+      rate: null,
+      usdAmount: null,
+      flag: form.date ? null : "Дата не вказана",
+    };
+    setEntries((prev) => {
+      if (form.id) return prev.map((e) => (e.id === form.id ? clean : e));
+      return [clean, ...prev];
+    });
+    setExpenseOpen(false);
+    setEditing(null);
+  }
+
+  function saveConvert(form) {
+    const uah = form.uah === "" ? 0 : Number(form.uah);
+    const rate = form.rate === "" ? null : Number(form.rate);
+    const usdAmount = rate ? Math.round((uah / rate) * 100) / 100 : 0;
+    const clean = {
+      id: form.id ?? uid(),
+      date: form.date || null,
+      desc: (form.desc || "").trim() || "Переведено в $",
+      type: "convert",
+      uah,
+      rate,
+      usdAmount,
+      flag: form.date ? null : "Дата не вказана",
+    };
+    setEntries((prev) => {
+      if (form.id) return prev.map((e) => (e.id === form.id ? clean : e));
+      return [clean, ...prev];
+    });
+    setConvertOpen(false);
+    setEditing(null);
+  }
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      {/* ---- Обкладинка / шапка ---- */}
+      <div style={{ background: "#1F4B3F", color: "#F1EDE1" }}>
+        <div style={{ maxWidth: 880, margin: "0 auto", padding: "28px 20px 22px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <PiggyIcon size={26} />
+            <h1 style={{ fontFamily: "'Special Elite', monospace", fontSize: 26, margin: 0, fontWeight: 400 }}>
+              Мої грн
+            </h1>
+          </div>
+
+          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+            <SummaryCard label="За весь час" value={fmt(totals.totalAdded) + " ₴"} valueSize={22} color="#e3cd8c" />
+            <SummaryCard label="Поточна" value={fmt(totals.current) + " ₴"} valueSize={26} color="#8fd6ab" />
+          </div>
+
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+            <SummaryCard
+              label="Переведено у $"
+              value={fmt(totals.convertedUah) + " ₴"}
+              color="#9fc7e8"
+              sub={
+                <div style={{ marginTop: 6, display: "inline-block", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "3px 8px" }}>
+                  <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: "#8fd6ab" }}>${fmt2(totals.convertedUsd)}</span>
+                </div>
+              }
+            />
+            <SummaryCard
+              label="Витрати"
+              value={fmt(totals.expenseUah) + " ₴"}
+              color="#e8a3a3"
+            />
+          </div>
+
+          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <button
+              onClick={openAdd}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                background: "#F1EDE1", color: "#1F4B3F", border: "none", borderRadius: 8,
+                padding: "12px 8px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12,
+              }}
+            >
+              <PlusIcon size={15} /> Додати
+            </button>
+            <button
+              onClick={openExpense}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                background: "transparent", color: "#F1EDE1", border: "1px solid rgba(241,237,225,0.5)", borderRadius: 8,
+                padding: "12px 8px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12,
+              }}
+            >
+              <MinusIcon size={15} /> Витрати
+            </button>
+            <button
+              onClick={openConvert}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                background: "transparent", color: "#F1EDE1", border: "1px solid rgba(241,237,225,0.5)", borderRadius: 8,
+                padding: "12px 6px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12,
+              }}
+            >
+              В $ <ArrowRightIcon size={13} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {totals.flagged > 0 && (
+        <div style={{ maxWidth: 880, margin: "14px auto 0", padding: "0 20px" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "#fbf0d9", border: "1px solid #e3cd8c", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#6b5417" }}>
+            <WarnIcon size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+            <span>{totals.flagged} {totals.flagged === 1 ? "запис має" : "записи мають"} позначку для перевірки (некоректна або відсутня дата). Відкрийте запис і виправте дату.</span>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Діапазон дат ---- */}
+      <div style={{ maxWidth: 880, margin: "18px auto 0", padding: "0 20px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span className="mono" style={{ fontSize: 11, color: "#5a5237", textTransform: "uppercase", letterSpacing: "0.05em" }}>Період:</span>
+        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ width: "auto" }} />
+        <span className="mono" style={{ fontSize: 12, color: "#8a8267" }}>—</span>
+        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ width: "auto" }} />
+        {(dateFrom || dateTo) && (
+          <button
+            onClick={() => { setDateFrom(""); setDateTo(""); }}
+            style={{ background: "none", border: "none", color: "#8a8267", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, textDecoration: "underline" }}
+          >
+            весь період
+          </button>
+        )}
+      </div>
+
+      {/* ---- Графік ---- */}
+      <div style={{ maxWidth: 880, margin: "10px auto 0", padding: "0 20px" }}>
+        <div style={{ background: "#fbf9f2", border: "1px solid #c9c2a8", borderRadius: 10, padding: "12px 8px 8px" }}>
+          <MiniLineChart data={chartData} />
+        </div>
+      </div>
+
+      {/* ---- Панель дій ---- */}
+      <div style={{ maxWidth: 880, margin: "18px auto 0", padding: "0 20px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <IconBtn onClick={exportXlsx} title="Зберегти у файл Excel (.xlsx)" size={36}>
+          <SaveIcon size={16} />
+        </IconBtn>
+        <IconBtn onClick={triggerXlsxImport} title="Завантажити записи з файлу Excel (.xlsx)" size={36}>
+          <UploadIcon size={16} />
+        </IconBtn>
+        <input ref={xlsxInputRef} type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleXlsxImportFile} style={{ display: "none" }} />
+
+        {fsaSupported && (
+          <button
+            onClick={fileHandle ? forceSaveNow : pendingHandle ? reconnectExcelFile : connectExcelFile}
+            title={
+              fileHandle ? `Автозбереження увімкнено (${fileHandle.name || "файл"}). Клік — зберегти зараз.` :
+              pendingHandle ? "Автозбереження призупинено — клік, щоб відновити." :
+              "Клік — обрати Excel-файл і увімкнути автозбереження"
+            }
+            style={{
+              display: "flex", alignItems: "center", gap: 6, height: 36,
+              background: fileHandle ? "#e7efe9" : pendingHandle ? "#fbf0d9" : "#f6e8e6",
+              color: fileHandle ? "#25543f" : pendingHandle ? "#6b5417" : "#8a2f2f",
+              border: `1px solid ${fileHandle ? "#3E6B52" : pendingHandle ? "#e3cd8c" : "#B5474D"}`,
+              borderRadius: 8, padding: "0 12px",
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 12,
+            }}
+          >
+            <SyncIcon size={14} className={autoSaveState === "saving" ? "spin" : ""} />
+            Автозбереження
+          </button>
+        )}
+      </div>
+
+      {fsaSupported && (fileHandle || pendingHandle) && (
+        <div style={{ maxWidth: 880, margin: "6px auto 0", padding: "0 20px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span className="mono" style={{ fontSize: 11, color: autoSaveState === "error" ? "#B5474D" : "#8a8267" }}>
+            {autoSaveState === "saving" && "Збереження у файл…"}
+            {autoSaveState === "error" && "Не вдалося зберегти у файл."}
+            {autoSaveState === "saved" && lastSavedAt && `Збережено у файл: ${fmtDateTime(lastSavedAt)}`}
+            {autoSaveState === "idle" && pendingHandle && "Автозбереження призупинено — клік на кнопку, щоб відновити."}
+          </span>
+          {fileHandle && (
+            <button onClick={disconnectExcelFile} style={{ background: "none", border: "none", color: "#8a8267", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, textDecoration: "underline" }}>
+              відключити
+            </button>
+          )}
+        </div>
+      )}
+
+      {importMsg && (
+        <div style={{ maxWidth: 880, margin: "10px auto 0", padding: "0 20px" }}>
+          <div style={{
+            background: importMsg.ok ? "#e7efe9" : "#f6e8e6",
+            border: `1px solid ${importMsg.ok ? "#3E6B52" : "#B5474D"}`,
+            color: importMsg.ok ? "#25543f" : "#6b1f1f",
+            borderRadius: 8, padding: "8px 12px", fontSize: 13,
+          }}>
+            {importMsg.text}
+          </div>
+        </div>
+      )}
+
+      {/* ---- Реєстр записів ---- */}
+      <div style={{ maxWidth: 880, margin: "18px auto 60px", padding: "0 20px" }}>
+        {searchQuery.trim() && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <span className="mono" style={{ fontSize: 12, color: "#3E6B52" }}>Знайдено записів: {visible.length}</span>
+            <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", color: "#8a8267", fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, textDecoration: "underline" }}>
+              скасувати пошук
+            </button>
+          </div>
+        )}
+        <div style={{ border: "1px solid #c9c2a8", borderRadius: 10, overflow: "hidden" }}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(ev) => setSearchQuery(ev.target.value)}
+            placeholder="Пошук за назвою"
+            style={{ width: "100%", border: "none", borderBottom: "1px solid #c9c2a8", borderRadius: 0, background: "#f4f0e2", fontSize: 13, padding: "10px 14px" }}
+          />
+          <div style={{ background: "#fbf9f2" }}>
+            {visible.length === 0 && (
+              <div style={{ padding: 24, textAlign: "center", color: "#8a8267", fontSize: 14 }}>Записів ще немає.</div>
+            )}
+            {visible.map((e) => (
+              <LedgerRow key={e.id} e={e} onEdit={openEdit} onRemove={remove} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {addOpen && (
+        <EntryForm initial={editing} onCancel={() => { setAddOpen(false); setEditing(null); }} onSave={saveIncome} descOptions={descOptions} />
+      )}
+      {convertOpen && (
+        <ConvertForm initial={editing} current={totals.current} onCancel={() => { setConvertOpen(false); setEditing(null); }} onSave={saveConvert} />
+      )}
+      {expenseOpen && (
+        <ExpenseForm initial={editing} onCancel={() => { setExpenseOpen(false); setEditing(null); }} onSave={saveExpense} descOptions={descOptions} />
+      )}
+
+      <div style={{ textAlign: "center", padding: "0 20px 30px", fontSize: 11, color: "#8a8267", fontFamily: "'IBM Plex Mono', monospace" }}>
+        Дані зберігаються локально у цьому браузері. Щоб перенести їх на інший пристрій чи зробити резервну копію — натисни «Зберегти у файл», а на іншому пристрої відкрий цей файл і натисни «Завантажити».
+      </div>
+    </div>
+  );
+}
+
+function LedgerRow({ e, onEdit, onRemove }) {
+  const isConvert = e.type === "convert";
+  const isExpense = e.type === "expense";
+  const amountColor = isConvert ? "#8a2f8f" : isExpense ? "#B5474D" : "#25543f";
+  return (
+    <div className="ledger-row" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", flexWrap: "wrap" }}>
+      <div className="mono" style={{ width: 76, fontSize: 12, color: "#5a5237", flexShrink: 0 }}>
+        {e.flag ? (
+          <span title={e.flag} style={{ color: "#B5474D", display: "flex", alignItems: "center", gap: 4 }}>
+            <WarnIcon size={12} /> дата?
+          </span>
+        ) : fmtDate(e.date)}
+      </div>
+      <div style={{ flex: "1 1 160px", minWidth: 140 }}>
+        <div style={{ fontSize: 14, color: "#1b2a4a" }}>{e.desc}</div>
+        {isConvert && e.rate ? (
+          <div className="mono" style={{ fontSize: 10, color: "#8a8267" }}>курс {fmt2(e.rate)}</div>
+        ) : null}
+        {isExpense ? (
+          <div className="mono" style={{ fontSize: 10, color: "#8a8267" }}>витрата</div>
+        ) : null}
+      </div>
+      <div className="mono" style={{ textAlign: "right", fontSize: 15, fontWeight: 700, minWidth: 130, color: amountColor }}>
+        {isConvert ? (
+          <>
+            <div>-{fmt(e.uah)} ₴</div>
+            <div style={{ fontSize: 12, color: "#3E6B52", fontWeight: 600 }}>+${fmt2(e.usdAmount)}</div>
+          </>
+        ) : isExpense ? (
+          <div>-{fmt(e.uah)} ₴</div>
+        ) : (
+          <div>+{fmt(e.uah)} ₴</div>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+        <IconBtn onClick={() => onEdit(e)}><PencilIcon size={14} /></IconBtn>
+        <IconBtn onClick={() => onRemove(e.id)}><TrashIcon size={14} /></IconBtn>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, color, labelSize, valueSize, center, sub }) {
+  return (
+    <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, padding: "10px 12px", textAlign: center ? "center" : "left" }}>
+      <div className="mono" style={{ fontSize: labelSize || 10, textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.7 }}>{label}</div>
+      <div className="mono" style={{ fontSize: valueSize || 17, fontWeight: 600, marginTop: 2, color: color || "#F1EDE1" }}>{value}</div>
+      {sub || null}
+    </div>
+  );
+}
+
+function IconBtn({ onClick, children, size, title }) {
+  const s = size || 30;
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{ background: "#fbf9f2", border: "1px solid #c9c2a8", borderRadius: 8, width: s, height: s, display: "flex", alignItems: "center", justifyContent: "center", color: "#5a5237", flexShrink: 0 }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label style={{ display: "block" }}>
+      <div className="mono" style={{ fontSize: 11, color: "#5a5237", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+      {children}
+    </label>
+  );
+}
+
+// Числове поле з розділенням тисяч під час вводу (як у картках-підсумках)
+function groupThousands(rawStr) {
+  if (rawStr === "" || rawStr === null || rawStr === undefined) return "";
+  const neg = rawStr.startsWith("-");
+  const body = neg ? rawStr.slice(1) : rawStr;
+  const [intPart, decPart] = body.split(".");
+  const groupedInt = (intPart || "").replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  let out = groupedInt;
+  if (decPart !== undefined) out += "," + decPart;
+  return (neg ? "-" : "") + out;
+}
+
+function AmountInput({ value, onChange, placeholder }) {
+  function handleChange(ev) {
+    const raw = ev.target.value;
+    // прибираємо все, крім цифр, крапки й коми; кома трактується як десяткова
+    let cleaned = raw.replace(/[^\d.,]/g, "").replace(",", ".");
+    const parts = cleaned.split(".");
+    if (parts.length > 2) cleaned = parts[0] + "." + parts.slice(1).join("");
+    onChange(cleaned);
+  }
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={groupThousands(String(value ?? ""))}
+      onChange={handleChange}
+      placeholder={placeholder}
+    />
+  );
+}
+
+function ModalShell({ title, onCancel, children }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(27,42,74,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50 }} onClick={onCancel}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fbf9f2", width: "100%", maxWidth: 480, borderRadius: "14px 14px 0 0", padding: 20, maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h2 style={{ margin: 0, fontFamily: "'Special Elite', monospace", fontSize: 18, color: "#1b2a4a" }}>{title}</h2>
+          <button onClick={onCancel} style={{ background: "none", border: "none", color: "#5a5237" }}><XIcon size={20} /></button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Форма "Додати" — тільки грн ---- */
+function EntryForm({ initial, onCancel, onSave, descOptions }) {
+  const [form, setForm] = useState(initial);
+  const [showSug, setShowSug] = useState(false);
+  const set = (k) => (ev) => setForm((f) => ({ ...f, [k]: ev.target.value }));
+
+  const suggestions = useMemo(() => {
+    const q = (form.desc || "").trim().toLowerCase();
+    if (q.length < 2) return [];
+    return (descOptions || []).filter((d) => d.toLowerCase() !== q && d.toLowerCase().includes(q)).slice(0, 6);
+  }, [form.desc, descOptions]);
+
+  function pickSuggestion(s) {
+    setForm((f) => ({ ...f, desc: s }));
+    setShowSug(false);
+  }
+
+  return (
+    <ModalShell title={form.id ? "Редагувати запис" : "Додати"} onCancel={onCancel}>
+      <div style={{ display: "grid", gap: 10 }}>
+        <Field label="Дата">
+          <input type="date" value={form.date || ""} onChange={set("date")} />
+        </Field>
+        <Field label="Опис">
+          <div style={{ position: "relative" }}>
+            <input
+              type="text" value={form.desc} onChange={set("desc")}
+              onFocus={() => setShowSug(true)} onBlur={() => setTimeout(() => setShowSug(false), 150)}
+              autoComplete="off"
+            />
+            {showSug && suggestions.length > 0 && (
+              <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 60, background: "#fbf9f2", border: "1px solid #c9c2a8", borderRadius: 8, boxShadow: "0 4px 10px rgba(27,42,74,0.15)", overflow: "hidden" }}>
+                {suggestions.map((s) => (
+                  <div key={s} onMouseDown={() => pickSuggestion(s)} style={{ padding: "8px 10px", fontSize: 14, color: "#1b2a4a", cursor: "pointer", borderBottom: "1px solid #eee6d6" }}>
+                    {s}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Field>
+        <Field label="Сума, ₴">
+          <AmountInput value={form.uah} onChange={(v) => setForm((f) => ({ ...f, uah: v }))} placeholder="0" />
+        </Field>
+      </div>
+
+      <button
+        onClick={() => onSave(form)}
+        disabled={!form.uah}
+        style={{ marginTop: 16, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#1F4B3F", color: "#F1EDE1", border: "none", borderRadius: 8, padding: "12px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, opacity: !form.uah ? 0.5 : 1 }}
+      >
+        <CheckIcon size={16} /> Зберегти
+      </button>
+    </ModalShell>
+  );
+}
+
+/* ---- Форма "Витрати" — те, що просто кудись витрачається ---- */
+function ExpenseForm({ initial, onCancel, onSave, descOptions }) {
+  const [form, setForm] = useState(initial);
+  const [showSug, setShowSug] = useState(false);
+  const set = (k) => (ev) => setForm((f) => ({ ...f, [k]: ev.target.value }));
+
+  const suggestions = useMemo(() => {
+    const q = (form.desc || "").trim().toLowerCase();
+    if (q.length < 2) return [];
+    return (descOptions || []).filter((d) => d.toLowerCase() !== q && d.toLowerCase().includes(q)).slice(0, 6);
+  }, [form.desc, descOptions]);
+
+  function pickSuggestion(s) {
+    setForm((f) => ({ ...f, desc: s }));
+    setShowSug(false);
+  }
+
+  return (
+    <ModalShell title={form.id ? "Редагувати витрату" : "Витрати"} onCancel={onCancel}>
+      <div style={{ display: "grid", gap: 10 }}>
+        <Field label="Дата">
+          <input type="date" value={form.date || ""} onChange={set("date")} />
+        </Field>
+        <Field label="Опис">
+          <div style={{ position: "relative" }}>
+            <input
+              type="text" value={form.desc} onChange={set("desc")}
+              onFocus={() => setShowSug(true)} onBlur={() => setTimeout(() => setShowSug(false), 150)}
+              autoComplete="off"
+            />
+            {showSug && suggestions.length > 0 && (
+              <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 60, background: "#fbf9f2", border: "1px solid #c9c2a8", borderRadius: 8, boxShadow: "0 4px 10px rgba(27,42,74,0.15)", overflow: "hidden" }}>
+                {suggestions.map((s) => (
+                  <div key={s} onMouseDown={() => pickSuggestion(s)} style={{ padding: "8px 10px", fontSize: 14, color: "#1b2a4a", cursor: "pointer", borderBottom: "1px solid #eee6d6" }}>
+                    {s}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Field>
+        <Field label="Сума, ₴">
+          <AmountInput value={form.uah} onChange={(v) => setForm((f) => ({ ...f, uah: v }))} placeholder="0" />
+        </Field>
+      </div>
+
+      <button
+        onClick={() => onSave(form)}
+        disabled={!form.uah}
+        style={{ marginTop: 16, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#B5474D", color: "#F1EDE1", border: "none", borderRadius: 8, padding: "12px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, opacity: !form.uah ? 0.5 : 1 }}
+      >
+        <CheckIcon size={16} /> Зберегти
+      </button>
+    </ModalShell>
+  );
+}
+
+/* ---- Форма "Перевести в $" ---- */
+function ConvertForm({ initial, current, onCancel, onSave }) {
+  const [form, setForm] = useState(initial);
+  const set = (k) => (ev) => setForm((f) => ({ ...f, [k]: ev.target.value }));
+
+  const uahNum = form.uah === "" ? 0 : Number(form.uah);
+  const rateNum = form.rate === "" ? 0 : Number(form.rate);
+  const usdPreview = rateNum > 0 ? Math.round((uahNum / rateNum) * 100) / 100 : null;
+  const overLimit = form.id ? false : uahNum > current && current >= 0;
+
+  return (
+    <ModalShell title={form.id ? "Редагувати переведення" : "Перевести в $"} onCancel={onCancel}>
+      <div style={{ display: "grid", gap: 10 }}>
+        <Field label="Дата">
+          <input type="date" value={form.date || ""} onChange={set("date")} />
+        </Field>
+        <Field label="Опис">
+          <input type="text" value={form.desc} onChange={set("desc")} placeholder="Переведено в $" />
+        </Field>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <Field label="Сума, ₴ (списати)">
+            <AmountInput value={form.uah} onChange={(v) => setForm((f) => ({ ...f, uah: v }))} placeholder="0" />
+          </Field>
+          <Field label="Курс">
+            <AmountInput value={form.rate} onChange={(v) => setForm((f) => ({ ...f, rate: v }))} placeholder="0" />
+          </Field>
+        </div>
+
+        <div style={{ background: "#eef3ea", border: "1px solid #cfe0d3", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+          <div className="mono" style={{ fontSize: 10, color: "#5a5237", textTransform: "uppercase", letterSpacing: "0.05em" }}>Отримаєте</div>
+          <div className="mono" style={{ fontSize: 22, fontWeight: 700, color: "#1F4B3F" }}>
+            {usdPreview !== null ? "$" + fmt2(usdPreview) : "—"}
+          </div>
+        </div>
+
+        {overLimit && (
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "#fbf0d9", border: "1px solid #e3cd8c", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#6b5417" }}>
+            <WarnIcon size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span>Сума перевищує поточний залишок ({fmt(current)} ₴). Можна продовжити, якщо це коригування історичних даних.</span>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={() => onSave(form)}
+        disabled={!form.uah || !form.rate}
+        style={{ marginTop: 16, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#1F4B3F", color: "#F1EDE1", border: "none", borderRadius: 8, padding: "12px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, opacity: (!form.uah || !form.rate) ? 0.5 : 1 }}
+      >
+        <CheckIcon size={16} /> Перевести
+      </button>
+    </ModalShell>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW registration failed:", e));
+    });
+  }
+</script>
+</body>
+</html>
