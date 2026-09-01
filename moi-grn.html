@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Мої грн</title>
+<title>Мої заощадження у грн</title>
 <link rel="manifest" href="manifest.json" />
 <meta name="theme-color" content="#1F4B3F" />
 <link rel="icon" href="icon-192.png" />
@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Мої грн" />
+<meta name="apple-mobile-web-app-title" content="Мої заощадження у грн" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -413,7 +413,7 @@ function App() {
     const COL_RED = "B5474D";
 
     const aoa = [];
-    aoa[0] = ["Мої грн"];
+    aoa[0] = ["Мої заощадження у грн"];
     aoa[1] = [];
     aoa[2] = [];
     aoa[3] = [];
@@ -567,16 +567,18 @@ function App() {
   }
 
   // визначає ролі колонок за заголовком: кожна колонка може належати лише ОДНІЙ ролі,
-  // ролі перевіряються у порядку пріоритету, щоб уникнути помилкового накладання
-  // (напр. "Дохід ₴" ніколи не сплутається з "Переведено $")
+  // ролі перевіряються у порядку пріоритету, щоб уникнути помилкового накладання.
+  // "дохід"/"витрата" перевіряються РАНІШЕ за узагальнений "$", бо в старих шаблонах
+  // колонка доходу могла називатися "Дохід $", хоча суми в ній насправді гривневі —
+  // такий заголовок має розпізнаватись як дохід, а не як переведення в $.
   function detectColumns(headerRow) {
     const roles = [
       { key: "date", matchers: ["дата", "date"] },
       { key: "desc", matchers: ["опис", "desc", "коментар", "призначення"] },
       { key: "rate", matchers: ["курс"] },
       { key: "expense", matchers: ["витрата", "витрати", "expense"] },
-      { key: "usd", matchers: ["переведено$", "usd", "$"] },
       { key: "income", matchers: ["дохід", "income", "надход"] },
+      { key: "usd", matchers: ["переведено$", "usd", "$"] },
     ];
     const cols = { date: -1, desc: -1, rate: -1, expense: -1, usd: -1, income: -1 };
     for (let i = 0; i < headerRow.length; i++) {
@@ -840,9 +842,9 @@ function App() {
       <div style={{ background: "#1F4B3F", color: "#F1EDE1" }}>
         <div style={{ maxWidth: 880, margin: "0 auto", padding: "28px 20px 22px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <PiggyIcon size={26} />
-            <h1 style={{ fontFamily: "'Special Elite', monospace", fontSize: 26, margin: 0, fontWeight: 400 }}>
-              Мої грн
+            <PiggyIcon size={24} />
+            <h1 style={{ fontFamily: "'Special Elite', monospace", fontSize: 21, margin: 0, fontWeight: 400, lineHeight: 1.15 }}>
+              Мої заощадження у грн
             </h1>
           </div>
 
